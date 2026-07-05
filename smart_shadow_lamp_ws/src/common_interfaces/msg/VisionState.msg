@@ -1,0 +1,15 @@
+builtin_interfaces/Time stamp
+bool hand_detected
+float32 hand_center_x
+float32 hand_center_y
+bool shadow_detected
+float32 shadow_center_x
+float32 shadow_center_y
+float32 shadow_area
+bool needs_relight
+float32 suggested_target_x
+float32 suggested_target_y
+string source_frame
+bool posture_ok
+string posture_issue
+float32 posture_score

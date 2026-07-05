@@ -1,0 +1,10 @@
+audio:
+  device: plughw:0,0
+  rate: 16000
+  channels: 1
+  chunk_seconds: 2
+speech:
+  wake_phrase: 你好小灯
+  model_path: models/vosk-model-small-cn
+feedback:
+  enable_tts: true
