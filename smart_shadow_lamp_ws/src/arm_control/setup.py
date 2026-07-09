@@ -22,8 +22,6 @@ setup(
     entry_points={
         "console_scripts": [
             "arm_controller = arm_control.arm_controller_node:main",
-            "baseline_pose = arm_control.baseline_pose_client:main",
-            "joint1_keyboard_teleop = arm_control.joint1_keyboard_teleop:main",
         ],
     },
 )
