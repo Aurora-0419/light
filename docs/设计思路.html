@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>智能无影灯系统设计流程示意图</title>
+    <!-- 引入 Apache ECharts -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <style>
+        body { margin: 0; padding: 20px; background-color: #f7f9fb; }
+        #main { width: 100%; height: 500px; margin: 0 auto; background: #fff; border: 1px solid #ddd; box-shadow: 0 4px 12px rgba(0,0,0,0.05);}
+    </style>
+</head>
+<body>
+    <div id="main"></div>
+    <script>
+        var chartDom = document.getElementById('main');
+        var myChart = echarts.init(chartDom);
+        var option;
+
+        option = {
+            backgroundColor: '#ffffff',
+            title: {
+                text: '智能无影灯系统设计流程示意图',
+                left: 'center',
+                bottom: 20, // 标题放在底部符合学术论文题注习惯
+                textStyle: {
+                    color: '#333',
+                    fontSize: 16,
+                    fontWeight: 'bold',
+                    fontFamily: 'sans-serif'
+                }
+            },
+            tooltip: {
+                trigger: 'item',
+                formatter: '{b}'
+            },
+            series: [
+                {
+                    type: 'graph',
+                    layout: 'none',
+                    symbol: 'rect',
+                    symbolSize: [180, 130], // 节点宽高
+                    roam: true, // 允许缩放和拖拽
+                    itemStyle: {
+                        color: '#409eff', // 主题蓝
+                        borderRadius: 8,
+                        shadowColor: 'rgba(64, 158, 255, 0.3)',
+                        shadowBlur: 10,
+                        shadowOffsetY: 4
+                    },
+                    label: {
+                        show: true,
+                        formatter: function (params) {
+                            return params.data.label;
+                        },
+                        rich: {
+                            title: {
+                                fontSize: 16,
+                                fontWeight: 'bold',
+                                color: '#ffffff',
+                                padding: [12, 0, 8, 0],
+                                align: 'center'
+                            },
+                            hr: {
+                                borderColor: 'rgba(255,255,255,0.4)',
+                                width: '100%',
+                                borderWidth: 1,
+                                height: 0
+                            },
+                            desc: {
+                                fontSize: 12,
+                                color: '#f0f5ff',
+                                lineHeight: 20,
+                                padding: [10, 8, 0, 8],
+                                align: 'left'
+                            }
+                        }
+                    },
+                    edgeSymbol: ['circle', 'arrow'],
+                    edgeSymbolSize: [4, 12],
+                    lineStyle: {
+                        color: '#909399',
+                        width: 3,
+                        type: 'solid',
+                        curveness: 0
+                    },
+                    // 节点数据（文本来源于正文总结）
+                    data: [
+                        {
+                            name: '需求定义',
+                            x: 0,
+                            y: 300,
+                            label: '{title|需求定义}\n{hr|}\n{desc|• 聚焦桌面遮挡阴影痛点\n• 确立补光/语音/姿态/光效\n四大核心需求}'
+                        },
+                        {
+                            name: '方案分解',
+                            x: 230,
+                            y: 300,
+                            label: '{title|方案分解}\n{hr|}\n{desc|• 划分视觉/语音/控制边界\n• 进行系统深度解耦\n• 制定ROS2话题接口协议}'
+                        },
+                        {
+                            name: '板端部署',
+                            x: 460,
+                            y: 300,
+                            label: '{title|板端部署}\n{hr|}\n{desc|• 视觉模型BPU量化移植\n• SPI灯控Linux板端适配\n• 机械臂控制参数整定}'
+                        },
+                        {
+                            name: '联调验证',
+                            x: 690,
+                            y: 300,
+                            label: '{title|联调验证}\n{hr|}\n{desc|• 搭建真实物理环境沙盘\n• 开展整机跨模块联调\n• 针对极限工况压力测试}'
+                        },
+                        {
+                            name: '场景评估',
+                            x: 920,
+                            y: 300,
+                            itemStyle: {
+                                color: '#67c23a', // 最后一个节点用绿色表示完成/通过
+                                shadowColor: 'rgba(103, 194, 58, 0.3)'
+                            },
+                            label: '{title|场景评估}\n{hr|}\n{desc|• 检验阴影追踪/坐姿预警\n• 验证运行稳定性\n• 确保系统的场景鲁棒性}'
+                        }
+                    ],
+                    // 连接线关系
+                    links: [
+                        { source: '需求定义', target: '方案分解' },
+                        { source: '方案分解', target: '板端部署' },
+                        { source: '板端部署', target: '联调验证' },
+                        { source: '联调验证', target: '场景评估' }
+                    ]
+                }
+            ]
+        };
+
+        option && myChart.setOption(option);
+
+        // 自适应窗口大小
+        window.addEventListener('resize', function() {
+            myChart.resize();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,348 @@
+% !TeX program = xelatex
+% 根据项目源码、开发板文件与目标架构整理生成，供 XeLaTeX 继续撰写。
+\documentclass[UTF8,a4paper,zihao=-4]{ctexart}
+
+\usepackage{geometry}
+\usepackage{fontspec}
+\usepackage{graphicx}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{setspace}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{amsmath,amssymb,bm}
+\usepackage{xcolor}
+\usepackage{caption}
+\usepackage{hyperref}
+
+\geometry{
+  top=2.54cm,
+  bottom=2.54cm,
+  left=3.17cm,
+  right=3.17cm,
+  headheight=1.60cm,
+  headsep=0.60cm,
+  footskip=1.75cm
+}
+
+\setmainfont{Times New Roman}
+\setCJKmainfont{SimSun}[AutoFakeBold=true,AutoFakeSlant=true]
+\setCJKsansfont{SimHei}[AutoFakeBold=true]
+\setCJKmonofont{FangSong}
+
+\linespread{1.5}
+\setlength{\parindent}{2em}
+\setlength{\parskip}{0pt}
+\hypersetup{hidelinks}
+
+\titleformat{\section}[block]{\centering\bfseries\zihao{3}}{}{0pt}{}
+\titleformat{\subsection}[block]{\bfseries\zihao{4}}{}{0pt}{}
+\titleformat{\subsubsection}[block]{\bfseries\zihao{-4}}{}{0pt}{}
+\titlespacing*{\section}{0pt}{1.2em}{0.8em}
+\titlespacing*{\subsection}{0pt}{0.9em}{0.5em}
+\titlespacing*{\subsubsection}{0pt}{0.6em}{0.3em}
+\setlist{nosep,leftmargin=2em}
+\captionsetup{font=small,labelfont=bf}
+
+\newcommand{\HeaderLogo}{%
+  \includegraphics[width=8.91cm,height=1.24cm,keepaspectratio]{logo.png}%
+}
+
+\newcommand{\ImagePlaceholder}[2]{%
+  \begin{figure}[htbp]
+    \centering
+    \fbox{\parbox[c][#2][c]{0.86\textwidth}{\centering #1}}
+    \caption{#1}
+  \end{figure}
+}
+
+\newcommand{\KeyTerm}[1]{\textbf{#1}}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[C]{\HeaderLogo}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+\begin{document}
+
+\begin{center}
+{\fontsize{18pt}{22pt}\selectfont 具身视界：基于进迭时空K1的远程三维视觉感知与VR交互系统}
+\end{center}
+
+
+\section*{摘要}
+
+随着工业4.0与具身智能时代的全面开启，抢险救灾、精密巡检及远程医疗等领域对复杂非结构化环境的感知需求，已从传统的二维平面视觉向高维度、强交互的三维空间感知跨越。传统方案往往受限于边缘端算力不足或交互手段单一，难以在保证实时性的同时提供深度沉浸的作业体验。针对这一行业痛点，本项目设计并实现了一套基于RISC-V国产架构核心的具身远程3D感知与实时重建系统。系统以进迭时空K1开发板为边缘计算基座，充分挖掘其RISC-V矢量计算算力与多核调度优势，配合Gemini 330高性能深度相机，构建了以开发板为核心的云边端协同架构：边侧统筹感知预处理与控制调度，端侧承担VR沉浸交互与部分重构协同，云侧则预留复杂离线处理与数据接口。 在视觉处理层面，系统不仅实现了高精度的实时点云重建与VR端沉浸式展示，更创新性地引入了基于专家模型的物体筛选与边缘检测算法，通过对特定目标的语义提取实现选中物体高亮与视角自动跟随，极大地降低了操作员在复杂背景下的视觉疲劳与认知负荷。在交互逻辑上，系统打破了单向观察的局限，通过解析VR头显位姿与手柄传感器信号，将其反向映射为具身云台的六自由度动作与底盘移动指令，实现了“所见即所得”的具身化遥操作。这一技术路径不仅验证了RISC-V架构在高性能视觉推理领域的巨大潜力，也为未来复杂环境下的无人化作业提供了一种具备高扩展性、高实时性与深度交互能力的国产化解决方案，具有显著的技术前瞻性与实际应用价值。
+
+\section*{第一部分 作品概述}
+
+\subsection*{1.1 功能与特性}
+
+本作品实现的是一套“开发板总控 + 端侧协同显示 + ROS2 电机反馈控制”的具身视觉系统。系统通过 RISC-V Bianbu 开发板连接 Orbbec Gemini RGB-D 相机，实时获取 640$\times$480 彩色图和 640$\times$400 深度图。开发板端对 RGB 与深度数据进行采集、格式归一化、帧同步、深度有效性判断和压缩封装，将每帧数据封装为 DCS1 数据包，并在局域网内通过 HTTPS/WebSocket 服务发布。VR 头显访问指定地址后即可读取图像流，在 WebXR 三维环境中观察经过深度重建的点云场景。
+
+系统不仅显示图像，还将视觉理解与控制闭环结合。彩色图像侧设计了基于 YOLOv5t/YOLO-tiny 的目标识别模块，用于识别场景中的主要物体类别、候选目标位置和目标轮廓。深度图像侧根据相机内参、外参和深度尺度重建点云，为 VR 场景提供空间结构。考虑到嵌入式比赛对系统主控性的要求，本项目将 VR 端界定为“端侧协同显示与交互节点”，其承担的是靠近用户的空间化显示与部分重建计算，而不是脱离开发板独立工作的主处理器；所有数据入口、状态管理、算法调度和控制决策仍统一回收到开发板总控节点。交互控制侧读取 VR 头显姿态和手柄输入：头显俯仰/偏航角用于控制云台视角；左手柄摇杆用于控制轮式电机前进、后退和左右转向；右手柄按键用于切换自由视角与跟随视角。自由视角下，云台跟随头显朝向；跟随视角下，系统根据用户选中的目标进行轮廓高亮和目标跟踪，并自动控制云台视角朝向目标。需要说明的是，面向任意候选物体的自由选择、稳定边缘识别与全身高亮功能目前仍处于稳步实现和持续固化阶段，现阶段已明确接口与算法路径，后续将结合手柄交互逻辑和视觉跟踪结果进一步完善。
+
+本作品具有以下特性：第一，软硬件协同丰富，开发板同时管理 RGB-D 相机、VR 显示端、ROS2 控制节点和 Dynamixel 电机，并承担云--边--端协同中的边侧总控角色；第二，协议设计轻量，DCS1 帧格式由 JSON 头部和二进制图像载荷组成，便于在不同端快速解析；第三，重建算法透明，不依赖不可控闭源 SDK，而是使用可解释的针孔相机模型和软件配准流程；第四，控制框架标准，电机侧采用 ROS2 Humble 与 ros2\_control，便于后续扩展速度控制、轨迹控制和安全限位；第五，系统充分考虑 RISC-V 生态限制，在缺少官方 SDK 和成熟预编译包的情况下，通过 V4L2、串口、DDS、WebSocket 等基础能力构建完整功能；第六，云侧能力被设计为按需接入的可选增强层，目前主要处于接口预留状态，可服务于模型训练、日志归档和大规模离线分析，而不会削弱开发板在主链路中的核心地位。
+
+\ImagePlaceholder{系统整体实物图接口：建议放置开发板、RGB-D 相机、云台电机、轮式底盘与 VR 头显合照}{5cm}
+
+\subsection*{1.2 应用领域}
+
+本系统适用于需要远程空间感知和沉浸式交互的场景。第一类应用是复杂环境远程巡检，例如狭窄管廊、机房、仓储通道、低照度空间或人工不便进入的实验场景。传统摄像头只能提供二维图像，操作人员难以判断物体距离和空间遮挡关系；本系统提供 RGB-D 点云视图，使使用者可以在 VR 中获得接近现场的空间感。
+
+第二类应用是教育与科研平台。RISC-V 开发板、Linux、ROS2、WebXR、RGB-D 相机和 Dynamixel 电机共同构成一个完整的嵌入式机器人教学样例，能够展示从底层设备驱动、图像采集、网络通信、深度重建、目标识别到机器人控制的全链路开发过程。相比直接使用成熟 x86 或 ARM 平台，本作品更能体现开放指令集平台在实际工程落地中的适配难点和开发价值。
+
+第三类应用是辅助机器人操作。操作者佩戴 VR 头显后，不仅可以观察点云场景，还能通过头部姿态和手柄输入自然地控制云台和轮式底盘，降低传统键盘/遥控器控制的学习成本。跟随视角模式可以在用户选定目标后持续跟踪目标，适用于移动目标观察、物体检索、简易安防巡查等任务。未来结合语义分割、路径规划和更稳定的多目标跟踪算法后，系统还可以拓展为具身智能机器人和低成本空间数字孪生采集平台。
+
+\ImagePlaceholder{应用场景示意图接口：建议放置 VR 观察点云、云台移动巡检、目标高亮跟踪三联图}{5cm}
+
+\subsection*{1.3 主要技术特点}
+
+作品的第一个技术特点是 RISC-V 环境下的 RGB-D 相机替代驱动。Orbbec Gemini 等深度相机通常依赖厂商 SDK 提供配准、帧同步和深度后处理，但在 riscv64 平台上，官方 SDK、pyorbbecsdk、OpenCV 高级构建包和部分推理后端并不完整可用。系统因此采用 V4L2 原始接口读取视频节点，通过 udev 属性和设备格式自动区分彩色流与深度流；彩色流优先选择 MJPEG，深度流读取 Y16 原始深度，并通过稳定的 /dev/v4l/by-path 路径降低设备编号漂移风险。
+
+第二个技术特点是自研轻量帧协议。系统设计了 DCS1 帧格式：前 4 字节为 magic，随后依次为 JSON 头部长度、RGB 载荷长度、深度载荷长度，再接 UTF-8 JSON 头部、RGB 二进制数据和深度二进制数据。头部包含 sequence、timestamp、rgb\_width、depth\_width、depth\_unit\_mm、depth\_intrinsics、color\_intrinsics、depth\_to\_color\_extrinsic、valid\_ratio 等信息，使 VR 端不仅能显示图像，还能按照同一帧的相机模型进行点云反投影。
+
+第三个技术特点是软件化 RGB-D 配准与点云重建。系统使用针孔模型将深度像素 $(u_d,v_d,z)$ 转换为深度相机坐标系点 $\mathbf{P}_d$，再通过外参矩阵 $\mathbf{R},\mathbf{t}$ 转换到彩色相机坐标系 $\mathbf{P}_c$，最终投影到彩色图像上获得纹理坐标。该流程替代了 SDK 隐藏的配准过程，便于在 RISC-V 环境中调试和移植。
+
+第四个技术特点是 VR 与 ROS2 的闭环控制。WebXR 端读取头显四元数和手柄摇杆，开发板侧控制节点将其映射为 ROS2 关节目标。云台俯仰和偏航由相对四元数计算，轮式运动由摇杆积分得到。电机执行层采用 ros2\_control 与 DynamixelHardware，串口为 /dev/ttyhand，波特率为 1000000，关节为 hand0、hand1、hand2、hand3。
+
+第五个技术特点是端侧 AI 推理适配。目标识别采用轻量化 YOLOv5t/YOLO-tiny 思路，在模型量化、输入尺寸裁剪和置信度阈值控制的基础上，规划接入 SpaceMITExecutionProvider 扩展开发板 AI 算力。由于端侧模型部署仍受 riscv64 算子支持和运行库兼容性制约，本作品采用“可运行最小检测链路 + 可替换推理后端”的方式，先保证检测框、类别、置信度和目标中心点可以服务于跟随算法，再逐步优化推理速度。
+
+\subsection*{1.4 主要性能指标}
+
+\begin{table}[htbp]
+\centering
+\caption{系统设计指标与当前工程状态}
+\begin{tabular}{p{0.27\textwidth}p{0.28\textwidth}p{0.35\textwidth}}
+\toprule
+指标类别 & 设计目标 & 当前实现/完善方向 \\
+\midrule
+开发板平台 & Bianbu 2.2，riscv64，Linux/ROS2 Humble & 已确认开发板环境为 Bianbu 2.2 与 riscv64；ROS2 控制栈基于 Humble。 \\
+RGB 采集 & 640$\times$480，MJPEG/YUYV 兼容 & 已设计 V4L2 自动节点识别和 MJPEG 优先策略。 \\
+深度采集 & 640$\times$400 Y16，深度单位 0.1--1.0 mm 可配置 & 已实现 Y16/y16-zlib 解码、压缩和有效点统计。 \\
+点云重建 & 基于真实内外参的实时重建 & 已具备针孔模型、外参配准和 WebXR 点云显示链路。 \\
+目标识别 & YOLOv5t/轻量 YOLO，类别识别与轮廓候选 & 检测框链路已形成，端侧加速和稳定轮廓高亮仍在优化。 \\
+通信方式 & HTTPS/WebSocket、SSH 调试、ROS2 DDS、U2D2 串口 & 已形成多协议协同架构。 \\
+电机控制 & hand0--hand3 四关节，50 Hz 控制器更新，Dynamixel 串口 1000000 baud & 板端 ros2\_control 配置已具备，基本控制管线已实现，实机验证继续推进。 \\
+交互方式 & VR 头显姿态 + 手柄摇杆/按键 & 头显姿态和左手柄摇杆映射已形成，按键切换和目标锁定继续固化。 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection*{1.5 主要创新点}
+
+本作品的创新点主要体现在四个方面。第一，在 RISC-V 开发板上构建 RGB-D 感知链路。面对官方 SDK 缺失、预编译依赖不足、图像算法包兼容性差等问题，系统没有简单迁移成熟平台方案，而是从 V4L2、udev、串口和 ROS2 基础接口出发，重建一套适合 riscv64 的相机采集、深度清洗、标定配准和数据传输流程。
+
+第二，将 VR 作为自然交互终端与空间显示终端。系统不只是把图像投到网页上，而是把深度点云、目标识别结果和控制反馈放入 WebXR 场景，使用户在头显中直接观察三维结构，并通过头部姿态控制云台视角。该设计把传统嵌入式小车从“二维遥控”提升到“沉浸式具身控制”。
+
+第三，提出了自由视角与跟随视角的双模式控制。自由视角下，系统以头显姿态为主导；跟随视角下，系统以用户选定目标为中心，通过 YOLO 检测、轮廓高亮、Kalman 预测和云台伺服控制实现目标保持。该机制将视觉理解直接反馈到电机控制，形成从图像语义到机器人运动的闭环。
+
+第四，使用 ROS2/ros2\_control 标准化底层电机控制。系统没有为电机单独设计不可复用的私有控制接口，而是将 hand0--hand3 抽象为 ROS2 控制关节，结合 JointGroupPositionController/DynamixelHardware 和 /dev/ttyhand 串口，使后续加入速度控制、轨迹规划、限位保护和状态反馈更加自然。
+
+\subsection*{1.6 设计流程}
+
+系统设计流程分为五步。第一步是硬件选型与底层通信打通，确认 Bianbu RISC-V 开发板、Orbbec Gemini 相机、VR 头显、Dynamixel 电机、U2D2 串口适配器和局域网通信环境。第二步是相机采集链路设计，使用 V4L2 自动扫描 RGB/Depth 节点，读取 MJPEG 彩色图与 Y16 深度图，并加入断线重连、空深度帧检测、时间戳和丢帧统计。
+
+第三步是感知算法设计，包括深度图清理、点云反投影、RGB-D 配准、目标检测和轮廓提取。第四步是 VR 显示与交互控制设计，VR 端读取帧数据并重建点云，同时发送头显四元数、手柄摇杆和按键状态。第五步是 ROS2 电机控制设计，将交互输入映射为四个关节目标，通过 ros2\_control 驱动实际电机，实现云台视角和轮式底盘运动。
+
+\ImagePlaceholder{设计流程图接口：建议绘制“采集--清洗--识别--重建--VR显示--ROS2控制”的流程图}{5cm}
+
+\section*{第二部分 系统组成及功能说明}
+
+本系统由硬件平台、相机采集层、感知算法层、网络通信层、VR 显示层和 ROS2 控制层构成。各层并不是孤立模块，而是通过统一帧协议、统一姿态消息和统一关节控制接口形成闭环。开发板端负责直接连接相机和电机，是系统的嵌入式核心；VR 端负责沉浸显示和交互输入，是人机交互核心；ROS2 控制层负责将抽象控制命令转化为电机可执行的关节目标，是运动执行核心。
+
+\subsection*{2.1 整体介绍}
+
+系统整体数据流如下：Orbbec Gemini 相机输出 RGB 彩色流和 Y16 深度流；开发板通过 V4L2 读取两路图像，对深度数据做清洗、压缩和标定信息注入；随后开发板将 RGB、Depth 和元数据通过 DCS1 帧格式发布到局域网 HTTPS/WebSocket 服务。VR 头显访问该服务后，请求最新帧并在 WebXR 场景中显示点云。用户在 VR 中移动头部或操作手柄后，头显姿态与手柄状态以 JSON 消息反馈给开发板控制节点。控制节点将姿态和摇杆输入转化为 ROS2 关节命令，发布到 /hand\_controller/commands 或 /hand\_controller/joint\_trajectory，再由 ros2\_control 驱动 Dynamixel 电机。
+
+如果从云--边--端协同角度描述该流程，则边侧开发板是数据入口、状态管理中心和控制出口：所有相机数据先进入开发板，所有重建元数据由开发板统一生成，所有控制指令最终由开发板发布到 ROS2 电机链路；端侧 VR 负责把开发板发布的结构化数据转化为沉浸式三维显示，并把用户交互结果回传给开发板；云侧目前不参与演示主回路，相关能力主要以接口预留和后续扩展方案的形式存在，仅在后续需要远程模型更新、训练集整理、离线重建评估或历史数据分析时按需接入。这种叙事可以把系统清晰地界定为“开发板主导、端侧协同、云侧增强”的嵌入式总体架构。
+
+系统同时存在视觉理解支路。彩色图像进入 YOLOv5t/YOLO-tiny 检测模块，输出目标类别、检测框、置信度和目标中心点。检测结果一方面叠加到 VR 图像中，另一方面服务于跟随视角控制。跟随视角中，用户通过手柄按键选择一个目标，系统记录该目标的检测框、类别和深度区域，随后在连续帧中进行跟踪、轮廓高亮和云台角度修正。其中，自由选择目标、边缘识别增强与稳定高亮属于正在稳步实现的功能，目前已完成总体算法设计和接口预留，后续将继续固化为实机稳定链路。
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=1\textwidth]{pipeline.png}
+    \caption{真机数据采集与动作先验训练验证}
+    \label{fig:bc_training}
+\end{figure}
+
+\subsection*{2.2 硬件系统介绍}
+
+\subsubsection*{2.2.1 硬件整体介绍}
+
+硬件系统以 Bianbu RISC-V 开发板为核心。该开发板运行 Bianbu 2.2 Linux 系统，底层架构为 riscv64，具备运行 Python、ROS2 Humble、V4L2 采集程序和网络服务的能力。相机采用 Orbbec Gemini RGB-D 相机，能够同时输出彩色图和深度图；彩色图用于目标识别和纹理显示，深度图用于点云重建和目标空间位置估计。执行机构由云台电机和轮式底盘电机构成，当前 ROS2 控制模型抽象为 hand0、hand1、hand2、hand3 四个关节，其中 hand0/hand1 用于轮式运动或底盘左右侧控制，hand2/hand3 用于云台偏航和俯仰。
+
+电机通信采用 U2D2 串口适配器和 Dynamixel 总线。开发板侧将串口固定为 /dev/ttyhand，波特率为 1000000。ros2\_control 的 xacro 配置中将四个关节映射到 Dynamixel ID 20、21、22、23，每个关节提供 position command interface，以及 position、velocity、effort state interface。这种抽象方式使上层不需要直接写寄存器，而是通过 ROS2 控制器发布关节目标。
+
+\ImagePlaceholder{硬件整体图接口：建议标注 Bianbu 开发板、Orbbec Gemini、U2D2、Dynamixel 电机、VR 头显和网络连接}{5cm}
+
+\subsubsection*{2.2.2 机械设计介绍}
+
+机械结构采用“移动底盘 + 云台视角”的布局。RGB-D 相机安装在云台上方，使彩色图、深度图和云台视角保持一致。云台至少需要提供俯仰自由度，后续可加入偏航自由度，使头显姿态能够自然映射到观察方向。轮式底盘负责整体位移，使用左右轮差速控制实现前进、后退和原地转向。
+
+机械设计需要保证三个约束。第一，相机中心应尽可能靠近云台旋转中心，减少视角转动时的视差误差。如果相机光心与旋转轴距离较大，目标跟随时会出现非线性偏移，需要在控制模型中加入杆臂补偿。第二，电机安装需要保证线缆在云台转动范围内不缠绕，尤其是 RGB-D 相机 USB 线和 U2D2 串口线。第三，底盘运动时要降低相机振动，避免深度图出现大面积空洞和点云抖动。后续实机版本会在相机固定架、云台轴承和底盘减振结构上继续优化。
+
+\ImagePlaceholder{机械设计图接口：建议放置云台结构 CAD、底盘装配图或手绘结构示意}{5cm}
+
+\subsubsection*{2.2.3 电路各模块介绍}
+
+电路与连接关系包括四个部分。第一是开发板供电与网络模块，开发板通过局域网提供 HTTPS/WebSocket 服务，并通过 SSH 进行调试和部署。第二是 RGB-D 相机连接模块，Orbbec Gemini 通过 USB 与开发板连接，系统使用 V4L2 枚举 /dev/video 节点，基于设备格式和 udev 属性区分彩色节点和深度节点。第三是电机控制模块，开发板通过 U2D2 串口适配器连接 Dynamixel 总线，串口设备固定为 /dev/ttyhand，波特率 1000000。第四是 VR 交互模块，VR 头显通过局域网访问开发板 HTTPS 地址，同时通过 WebSocket 回传姿态与手柄状态。
+
+在 RISC-V 环境中，硬件接口稳定性比常规平台更重要。USB 设备的 /dev/video 编号可能在重启或插拔后改变，因此系统优先使用 /dev/v4l/by-path 路径并进行设备格式探测；电机串口也通过 udev 规则固定为 /dev/ttyhand，避免 ttyUSB 编号漂移。该设计减少了比赛演示中因设备编号变化导致的启动失败。
+
+\ImagePlaceholder{电路与通信连接图接口：建议标出 USB 相机、U2D2 串口、电机总线、局域网 VR 通信}{5cm}
+
+\subsection*{2.3 软件系统介绍}
+
+\subsubsection*{2.3.1 软件整体介绍}
+
+软件系统分为采集、处理、识别、显示、控制五个子系统。采集子系统负责 V4L2 设备扫描、RGB/Depth 帧读取、MJPEG/Y16 格式处理、断线重连和帧统计。处理子系统负责深度解码、滤波、压缩、标定元数据注入和 RGB-D 软件配准。识别子系统负责 YOLO 目标检测、轮廓候选生成、目标选择和跟踪状态维护，其中轮廓高亮、自由选择物体与边缘识别增强功能正在稳步实现。显示子系统负责 HTTPS 静态页面、WebSocket 二进制帧传输、WebXR 点云渲染和调试信息显示。控制子系统负责解析头显姿态、手柄摇杆和按键状态，并通过 ROS2 发布关节控制命令。若按云--边--端协同重新归纳，采集、处理、识别和控制四个子系统主要由开发板边侧承载，显示和交互主要由 VR 端侧承载，云侧则承担可选的训练、归档与复杂分析任务，目前相关云侧能力以接口预留为主。
+
+软件系统的核心数据结构是 DCS1 帧。其格式为：
+\[
+\text{Packet}=\text{Magic}_{4B}\,||\,L_h\,||\,L_{rgb}\,||\,L_d\,||\,H_{json}\,||\,B_{rgb}\,||\,B_d
+\]
+其中 $L_h$、$L_{rgb}$、$L_d$ 分别表示头部、彩色图和深度图长度；$H_{json}$ 保存相机参数、时间戳、序列号、深度单位、图像尺寸和处理状态；$B_{rgb}$ 是 JPEG/MJPEG 彩色载荷；$B_d$ 是 Y16 或 y16-zlib 深度载荷。该格式比直接使用多路视频流更适合 RGB-D 同步，因为每一帧都携带完整重建所需元数据。
+
+\subsubsection*{2.3.2 软件各模块介绍}
+
+\textbf{相机采集模块。}采集模块通过 v4l2-ctl 扫描设备格式，寻找支持 640$\times$480 MJPG/YUYV 的 RGB 节点和支持 640$\times$400 Y16 的深度节点。为适应 Orbbec 设备多节点特性，模块读取 udev 属性中的产品名和 USB interface 编号，对候选设备排序，并优先使用 /dev/v4l/by-path 稳定路径。RGB 采集使用 ffmpeg 或 V4L2 读取 MJPEG，深度采集读取 Y16 原始数据。系统维护 sequence、timestamp、rgb\_depth\_delta、dropped\_frames、capture\_to\_send 等统计量，为后续性能分析提供依据。
+
+\textbf{深度清洗模块。}深度图中常见问题包括空洞、飞点、边缘毛刺、时间抖动和深度突变。系统设计了两类处理路径：低延迟路径用于大分辨率实时显示，主要完成裁剪、有效值判断和时间域稳定；完整处理路径用于低分辨率或离线验证，包含空洞填补、边缘保持平滑、稀疏离群点剔除和时间滤波。空洞填补在 3$\times$3 邻域中寻找深度差不超过阈值的有效邻居；边缘保持平滑使用空间权重与深度差权重组合：
+\[
+w_{ij}=\exp\left(-\frac{\|\mathbf{p}_i-\mathbf{p}_j\|^2}{2\sigma_s^2}\right)\exp\left(-\frac{(d_i-d_j)^2}{2\sigma_d^2}\right)
+\]
+当邻域深度差超过边缘阈值时，不参与平滑，以避免物体边界被抹平。时间滤波采用指数平滑：
+\[
+d_t'=\alpha d_{t-1}'+(1-\alpha)d_t
+\]
+并设置最大允许变化 $\Delta d$，当相邻帧差异过大时保留当前观测，避免拖影。
+
+\textbf{RGB-D 配准与点云重建模块。}系统使用真实 Orbbec 标定参数。以 640$\times$400 深度和 640$\times$480 彩色配置为例，深度内参约为 $f_x=f_y=307.824$，$c_x=314.179$，$c_y=200.103$；彩色内参约为 $f_x=518.707$，$f_y=518.717$，$c_x=315.735$，$c_y=235.619$；深度到彩色外参平移约为 $[-14.171,0.136,-2.025]$ mm。对任意深度像素 $(u,v)$ 和深度 $z$，其三维点为：
+\[
+X_d=\frac{(u-c_x)z}{f_x},\quad Y_d=\frac{(v-c_y)z}{f_y},\quad Z_d=z
+\]
+写成齐次坐标后，通过外参变换到彩色相机坐标系：
+\[
+\mathbf{P}_c=\mathbf{R}\mathbf{P}_d+\mathbf{t}
+\]
+再投影到彩色图：
+\[
+u_c=f_x^c\frac{X_c}{Z_c}+c_x^c,\quad v_c=f_y^c\frac{Y_c}{Z_c}+c_y^c
+\]
+若多个深度点落入同一彩色像素，系统保留较近深度，形成类似 z-buffer 的遮挡处理。这一过程参考了 KinectFusion、RGB-D odometry 和深度图融合中的经典思路，但实现上尽量保持轻量和可移植，适合 RISC-V 开发环境。
+
+\textbf{目标识别模块。}目标识别模块采用轻量化 YOLO 思路。输入图像先缩放到模型输入尺寸，网络输出候选框 $(x,y,w,h)$、类别概率 $p_c$ 和置信度 $s$，系统以阈值 $s>\tau$ 筛选目标。对于需要跟随的目标，系统记录类别、中心点、检测框面积和深度区域均值。轮廓高亮的计划实现为“检测框约束 + 深度一致性 + 边缘提取”的组合：先在检测框内选取深度中位数 $\tilde{d}$，保留满足 $|d-\tilde{d}|<\epsilon$ 的像素，再结合 Canny/形态学闭运算得到物体外轮廓。面向任意候选物体的自由选择逻辑，将结合手柄交互、目标候选排序和深度区域一致性联合完成。上述边缘识别、自由选择与全身高亮功能目前仍在稳步实现和持续稳定化，后续将进一步接入实例分割或轻量 SAM 替代方案，使全身高亮更准确。
+
+\textbf{跟随视角模块。}跟随视角采用 tracking-by-detection 框架。每一帧 YOLO 输出检测集合 $\mathcal{D}_t$，跟踪器维护目标状态 $\mathbf{x}_t=[u,v,\dot{u},\dot{v},s,\dot{s}]^T$，其中 $(u,v)$ 为目标中心，$s$ 为目标尺度。当前目标锁定与跟随主链已经成形，而更灵活的自由选择目标与高稳定目标切换机制仍在稳步实现。状态预测采用常速度模型：
+\[
+\mathbf{x}_{t|t-1}=\mathbf{F}\mathbf{x}_{t-1|t-1},\quad
+\mathbf{P}_{t|t-1}=\mathbf{F}\mathbf{P}_{t-1}\mathbf{F}^T+\mathbf{Q}
+\]
+检测关联使用 IoU、类别一致性和中心距离构造代价：
+\[
+C_{ij}=\lambda_1(1-\mathrm{IoU}_{ij})+\lambda_2\frac{\|\mathbf{c}_i-\hat{\mathbf{c}}_j\|}{D}+\lambda_3\mathbb{I}(cls_i\ne cls_j)
+\]
+多目标情况下可用 Hungarian 算法关联；单目标跟随时选择与用户初始目标代价最低的检测。得到目标中心偏差 $e_u=u-u_0$、$e_v=v-v_0$ 后，云台控制采用比例限幅：
+\[
+\Delta \theta_{yaw}=k_u\frac{e_u}{W},\quad \Delta \theta_{pitch}=k_v\frac{e_v}{H}
+\]
+当跟随模式开启时，系统禁用自由视角对云台的直接控制，避免头显转动和目标跟随同时争夺控制权。
+
+\textbf{VR 交互模块。}VR 端基于 WebXR，读取同一帧的 RGB、Depth 和相机元数据，在 Three.js 场景中使用点精灵绘制点云。系统根据用户设置调整点大小、深度范围和点云密度。VR 端还以固定周期回传头显姿态四元数、位置和手柄状态。四元数 $q=[x,y,z,w]$ 先归一化，第一帧有效姿态作为零参考 $q_0$，之后计算相对姿态：
+\[
+q_r=q_0^{-1}\otimes q_t
+\]
+再提取 yaw 和 pitch 映射到云台关节。
+
+\textbf{ROS2 控制模块。}控制模块采用 ROS2 Humble 和 ros2\_control。板端硬件控制栈中 controller\_manager 更新率设置为 50 Hz，hand\_controller 控制 hand0、hand1、hand2、hand3 四个关节。xacro 中硬件插件为 dynamixel\_hardware\_interface/DynamixelHardware，串口为 /dev/ttyhand，波特率为 1000000。上层控制节点可发布 Float64MultiArray 位置命令或 JointTrajectory 轨迹命令。头显 yaw/pitch 被限制在 $\pm45^\circ$，左手柄摇杆设置 0.20 死区，轮式电机使用积分式控制：
+\[
+\Delta \phi = \gamma \cdot \omega_{max}\cdot \Delta t
+\]
+其中 $\gamma$ 为摇杆越过死区后的归一化强度，$\omega_{max}$ 初始取 6$^\circ$/s。该保守参数便于实机调试，避免电机突然大幅运动。
+
+\section*{第三部分 完成情况及性能参数}
+
+当前作品已经形成较完整的工程管线。开发板环境已确认为 Bianbu 2.2、riscv64；相机采集程序支持 RGB/Depth 节点自动识别、V4L2 原始采集、MJPEG/Y16 格式处理、断线等待和帧统计；深度处理程序支持 y16、y16-zlib、grey8、grey8-zlib 多种深度载荷，能够注入相机内参、外参、有效点比例和软件配准状态；VR 显示程序已具备 WebSocket 拉取最新帧、解码深度、点云反投影和 WebXR 姿态回传能力；电机控制程序已实现头显 yaw/pitch 与左手柄摇杆到 hand0--hand3 的映射，并具备 ROS2 位置/轨迹发布接口。板端 armpiper 控制工程中已存在 /dev/ttyhand、DynamixelHardware、hand0--hand3 和 1000000 波特率等硬件配置。
+
+需要说明的是，比赛前仍有部分工程模块处于快速完善阶段。目标识别加速、物体全身轮廓高亮、自由选择目标、边缘识别增强、稳定跟随视角和完整端侧部署仍在推进。报告中按最终目标架构描述其设计方案，是因为这些模块已经具有明确接口、算法路径和移植计划，后续一个月主要工作是将其从验证链路固化到端侧实时链路；云侧相关功能同样以接口预留和后续扩展为主，当前并未作为演示主回路的必要组成部分。
+
+\subsection*{3.1 整体介绍}
+
+系统整体实物由开发板、RGB-D 相机、云台/轮式电机组、串口总线、电源和 VR 头显组成。运行时，开发板先启动相机采集和 ROS2 控制环境；VR 头显访问局域网 HTTPS 地址进入 WebXR 页面；用户在 VR 中看到由深度图重建的点云场景和 RGB 纹理；当用户移动头部时，云台随姿态改变观察方向；当用户推动左手柄摇杆时，底盘执行前进、后退或转向；当用户切换到跟随视角时，系统锁定目标并尝试保持目标位于画面中心。
+
+\ImagePlaceholder{系统运行实物图接口：建议放置整个系统正面照片和斜 45 度照片}{5cm}
+
+\subsection*{3.2 工程成果}
+
+\subsubsection*{3.2.1 机械成果}
+
+机械部分已经确定“云台承载 RGB-D 相机 + 轮式底盘移动”的总体形态。云台用于改变相机视角，轮式底盘用于改变观察位置。该结构使系统既能站在原地环视，也能移动到目标附近获取更稳定的深度数据。后续实机装配将继续优化相机安装高度、云台旋转中心和底盘减振结构，并补充实物照片。
+
+\ImagePlaceholder{机械成果照片接口：建议放置云台相机固定结构、轮式底盘、电机安装细节}{5cm}
+
+\subsubsection*{3.2.2 电路成果}
+
+电路和连接部分已经形成清晰链路。Orbbec 相机通过 USB 接入开发板，开发板通过 V4L2 访问相机节点；Dynamixel 电机通过 U2D2 接入 /dev/ttyhand；VR 头显通过局域网访问开发板服务；SSH 仅用于调试、部署和日志检查。RISC-V 环境下最关键的电路工程点是设备命名稳定性，因此相机侧采用 /dev/v4l/by-path，电机侧采用固定串口别名，减少比赛现场因插拔顺序变化带来的故障。
+
+\ImagePlaceholder{电路成果照片接口：建议放置开发板接线、相机 USB、U2D2 与电机总线接线特写}{5cm}
+
+\subsubsection*{3.2.3 软件成果}
+
+软件成果包括六部分。第一，采集程序已经实现设备扫描、格式选择、RGB/Depth 读取和 DCS1 打包。第二，协议模块实现帧编码和解码，使开发板、VR 端和视觉识别模块使用同一数据结构。第三，深度处理模块实现深度单位转换、压缩、滤波、有效点统计和 RGB-D 标定元数据注入。第四，WebXR 模块实现点云显示、图像状态统计和姿态/手柄反馈。第五，ROS2 控制模块实现 ControlMapper，将头显相对姿态和摇杆积分映射为 hand0--hand3。第六，目标识别模块已经形成 YOLO 权重加载、RGB 推理、检测叠加和深度伪彩显示的验证链路，后续将进一步迁移到开发板端并接入 SpaceMITExecutionProvider。
+
+\ImagePlaceholder{软件界面截图接口：建议放置 VR 点云界面、目标识别叠加图、深度伪彩色图、控制日志截图}{5cm}
+
+\subsection*{3.3 特性成果}
+
+系统已体现出以下特性成果。第一，跨架构适配能力强。面对 riscv64 环境缺少官方 SDK 和成熟依赖的问题，系统使用原始 V4L2、串口和 ROS2 接口完成核心功能，避免被单一厂商库限制。第二，数据链路低耦合。DCS1 协议将图像载荷和元数据分离，使后续替换压缩方式、加入识别结果或扩展标定参数都比较方便。第三，重建算法可解释。点云生成、外参配准和滤波流程都由显式数学模型完成，便于调试误差来源。第四，人机交互自然。用户通过 VR 头显和手柄直接控制视角与移动，比传统键盘控制更符合观察任务。第五，控制链路标准化。ROS2/ros2\_control 使系统可以继续扩展 MoveIt、轨迹规划、状态反馈和安全策略。
+
+\clearpage
+
+\section*{第四部分 总结}
+
+\subsection*{4.1 可扩展之处}
+
+本作品后续可从五个方向扩展。第一，完善端侧 AI 推理，将 YOLOv5t/YOLO-tiny 模型进行量化、算子替换和输入裁剪，接入 SpaceMITExecutionProvider，提高开发板侧检测帧率。第二，完善实例轮廓高亮与边缘识别，将当前“检测框 + 深度一致性 + 边缘提取”的方案升级为轻量实例分割，使被跟随目标可以全身高亮，同时继续完成自由选择物体功能的工程固化。第三，完善目标跟随控制，将 Kalman/DeepSORT 类跟踪与云台 PID 控制结合，处理短时遮挡、检测丢失和目标快速移动。第四，完善电机实机验证，根据 Dynamixel 工作模式决定 hand0/hand1 采用位置积分、速度模式还是扩展位置模式，并增加机械限位和急停策略。第五，完善点云质量，并继续保留云侧模型更新、离线重建评估与历史数据分析接口，使系统后续能够按需扩展到更完整的云边端协同形态。
+
+\subsection*{4.2 心得体会}
+
+本项目最大的体会是，嵌入式系统开发不是单纯把算法放到板子上运行，而是在硬件能力、驱动接口、通信协议、实时性和可维护性之间不断折中。尤其在 RISC-V 环境下，许多在 x86 或 ARM 平台上看似理所当然的库并不能直接使用。官方 RGB-D SDK 缺失时，需要回到 V4L2 原始接口；高级图像处理库不可用时，需要自己实现深度滤波和配准；推理后端不完整时，需要重新考虑模型尺寸、算子支持和加速接口；电机控制不稳定时，需要从串口、udev、ROS2 控制器和硬件接口逐层排查。
+
+通过这个项目，我更加理解了开放系统的价值。Linux 提供了设备文件、udev、V4L2 和网络能力；ROS2 提供了机器人控制抽象；WebXR 提供了跨设备 VR 显示能力；RISC-V 提供了开放指令集平台。单独看每个模块都存在限制，但把它们合理组合后，可以构成一个完整的具身智能原型系统。
+
+项目中最有挑战的是 RGB-D 重建和控制闭环。RGB-D 相机并不是简单输出一张“带深度的图片”，深度图和彩色图有不同内参、分辨率和坐标系，必须通过外参矩阵和投影模型配准。VR 控制也不是简单读取头显角度，必须设置零参考、处理四元数、限制角度、加入死区和积分时间，否则电机会产生抖动或突变。目标跟随更进一步要求视觉检测、状态估计和云台控制同时稳定，这也是后续重点完善方向。
+
+虽然当前仍有部分代码处于验证和迁移阶段，但系统的总体架构已经清晰：开发板负责感知、推理、通信和控制，VR 负责沉浸显示和自然交互，ROS2 负责标准化运动执行。后续一个月将继续围绕端侧部署、实机稳定性、图像资料补充和跟随算法优化推进，争取在决赛前形成可连续演示的完整系统。
+
+\section*{第五部分 参考文献}
+
+[1] Newcombe R. A., Izadi S., Hilliges O., et al. KinectFusion: Real-time dense surface mapping and tracking. IEEE International Symposium on Mixed and Augmented Reality, 2011.
+
+[2] Mur-Artal R., Montiel J. M. M., Tardos J. D. ORB-SLAM: A versatile and accurate monocular SLAM system. IEEE Transactions on Robotics, 2015.
+
+[3] Bewley A., Ge Z., Ott L., Ramos F., Upcroft B. Simple Online and Realtime Tracking. IEEE International Conference on Image Processing, 2016.
+
+[4] Redmon J., Divvala S., Girshick R., Farhadi A. You Only Look Once: Unified, Real-Time Object Detection. CVPR, 2016.
+
+[5] Bochkovskiy A., Wang C. Y., Liao H. Y. M. YOLOv4: Optimal Speed and Accuracy of Object Detection. arXiv:2004.10934, 2020.
+
+[6] Kalman R. E. A New Approach to Linear Filtering and Prediction Problems. Transactions of the ASME, Journal of Basic Engineering, 1960.
+
+[7] Kuhn H. W. The Hungarian Method for the Assignment Problem. Naval Research Logistics Quarterly, 1955.
+
+[8] Quigley M., Conley K., Gerkey B., et al. ROS: an open-source Robot Operating System. ICRA Workshop on Open Source Software, 2009.
+
+[9] ROS2 Control Documentation. ros2\_control hardware interface and controller manager design documents.
+
+[10] W3C. WebXR Device API Specification.
+
+[11] Orbbec Gemini RGB-D Camera related calibration and depth camera documentation.
+
+[12] RISC-V International. The RISC-V Instruction Set Manual.
+
+\end{document}

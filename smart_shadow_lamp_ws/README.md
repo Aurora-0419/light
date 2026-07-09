@@ -14,7 +14,7 @@ This workspace defines the long-term system structure for:
 
 The current algorithm development still lives in the existing projects:
 
-- `../相机/` for PC-first vision and hand-shadow detection
+- `../camera/` for PC-first vision and hand-shadow detection
 - `../voice_control/` for wake word and fixed-command speech control
 
 This workspace gives those modules a stable ROS2 integration target.
@@ -36,7 +36,7 @@ smart_shadow_lamp_ws/
 ## Package Roles
 
 - `common_interfaces`: source directory for the `shadow_lamp_interfaces` ROS package, which owns shared messages for perception, speech, mode, light, and arm commands.
-- `vision_perception`: ROS wrapper target for the current `相机/` perception pipeline.
+- `vision_perception`: ROS wrapper target for the current `camera/` perception pipeline.
 - `voice_control`: ROS wrapper target for the current `../voice_control/` speech pipeline.
 - `system_coordinator`: thin orchestration layer for mode and command routing.
 - `light_control`: future light execution package.
@@ -45,7 +45,7 @@ smart_shadow_lamp_ws/
 ## Notes
 
 - This workspace is intentionally a skeleton. It sets the package boundaries and interface contracts first.
-- The first migration step is now in place: `vision_perception` and `voice_control` contain thin bridge code that points to the existing `../相机/` and `../voice_control/` projects.
+- The first migration step is now in place: `vision_perception` and `voice_control` contain thin bridge code that points to the existing `../camera/` and `../voice_control/` projects.
 - The next migration step should replace the placeholder ROS nodes with fully parameterized adapters around the current PC demo and speech runner.
 - Build and launch files are included as placeholders for later ROS2 integration.
 

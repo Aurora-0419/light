@@ -9,7 +9,10 @@ from launch_ros.substitutions import FindPackageShare
 
 def generate_launch_description() -> LaunchDescription:
     start_rviz = LaunchConfiguration("start_rviz")
+    start_gazebo_gui = LaunchConfiguration("start_gazebo_gui")
     start_voice = LaunchConfiguration("start_voice")
+    start_vision = LaunchConfiguration("start_vision")
+    vision_video = LaunchConfiguration("vision_video")
 
     openmanip_gazebo = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -17,7 +20,10 @@ def generate_launch_description() -> LaunchDescription:
                 [FindPackageShare("open_manipulator_x_bringup"), "launch", "gazebo.launch.py"]
             )
         ),
-        launch_arguments={"start_rviz": start_rviz}.items(),
+        launch_arguments={
+            "start_rviz": start_rviz,
+            "start_gazebo_gui": start_gazebo_gui,
+        }.items(),
     )
 
     openmanip_servo = IncludeLaunchDescription(
@@ -32,14 +38,19 @@ def generate_launch_description() -> LaunchDescription:
     return LaunchDescription(
         [
             DeclareLaunchArgument("start_rviz", default_value="false"),
+            DeclareLaunchArgument("start_gazebo_gui", default_value="false"),
             DeclareLaunchArgument("start_voice", default_value="false"),
+            DeclareLaunchArgument("start_vision", default_value="true"),
+            DeclareLaunchArgument("vision_video", default_value=""),
             openmanip_gazebo,
             openmanip_servo,
             Node(
+                condition=IfCondition(start_vision),
                 package="vision_perception",
                 executable="vision_state_bridge",
                 name="vision_state_bridge",
                 output="screen",
+                parameters=[{"video_path": vision_video}],
             ),
             Node(
                 package="system_coordinator",
@@ -53,6 +64,7 @@ def generate_launch_description() -> LaunchDescription:
                 executable="arm_controller",
                 name="shadow_lamp_arm_controller",
                 output="screen",
+                parameters=[{"full_joint_jog": True}],
             ),
             Node(
                 condition=IfCondition(start_voice),
