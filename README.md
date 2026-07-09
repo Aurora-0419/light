@@ -1,34 +1,34 @@
-# 智能无影灯系统
+# Smart Shadowless Lamp System
 
-本仓库是智能无影灯原型系统的完整工程工作区，包含视觉感知、语音交互、系统协调、灯光控制和机械臂控制等模块。系统整体部署在 RDK X5 板端运行，基于 ROS2 Humble 构建，通过相机感知桌面手部与阴影状态，通过板端麦克风进行语音命令识别，并由板端协调节点统一发布灯光与机械臂控制指令。
+This repository contains the complete engineering workspace for the Smart Shadowless Lamp prototype system. It includes modules for visual perception, voice interaction, system coordination, light control, and robotic arm control. The system is entirely deployed and runs on the RDK X5 board, built upon ROS 2 Humble. It perceives hand and shadow states on the desk via a camera, recognizes voice commands via the on-board microphone, and uniformly publishes light and arm control commands through a central coordination node.
 
-## 功能概览
+## Features Overview
 
-- **手部与阴影检测**：识别手部位置、纸面阴影位置和是否需要补光。
-- **姿态提醒**：基于人体关键点检测肩膀姿态，持续异常时发布提醒。
-- **语音控制**：支持唤醒词和固定命令识别，例如跟踪模式开关、灯光开关、亮度和色温切换。
-- **灯光控制**：板端通过 WS2812 SPI 驱动灯光，根据 ROS 指令切换颜色、亮度和开关状态。
-- **机械臂控制**：将高层跟踪命令转换为 MoveIt Servo joint jog 指令，驱动 OpenMANIPULATOR-X 调整灯具姿态。
+- **Hand & Shadow Detection**: Detects hand positions, shadow positions on the desk, and determines if supplemental lighting is required.
+- **Posture Reminder**: Detects shoulder posture based on human body keypoints and issues a reminder when an abnormal posture persists.
+- **Voice Control**: Supports wake-word and fixed-command recognition, such as toggling tracking mode, turning lights on/off, and adjusting brightness or color temperature.
+- **Light Control**: Drives WS2812 LEDs via on-board SPI, switching colors, brightness, and on/off states based on ROS commands.
+- **Robotic Arm Control**: Converts high-level tracking commands into MoveIt Servo joint jog commands to drive the OpenMANIPULATOR-X, adjusting the lamp's pose.
 
-## 目录结构
+## Directory Structure
 
 ```text
 workspace/
-├── camera/                    # 板端相机与手影检测算法
-├── voice_control/             # 语音识别、交互逻辑和本地语音反馈资源
-├── smart_shadow_lamp_ws/       # ROS2 工作区，封装各功能节点
-│   ├── src/common_interfaces/  # 自定义 ROS2 消息接口
-│   ├── src/vision_perception/  # 视觉感知 ROS2 桥接节点
-│   ├── src/voice_control/      # 语音命令与反馈 ROS2 桥接节点
-│   ├── src/system_coordinator/ # 系统协调与决策节点
-│   ├── src/light_control/      # 灯光执行节点
-│   └── src/arm_control/        # 机械臂执行节点
-└── open_manipulator/           # OpenMANIPULATOR-X、MoveIt 和 Dynamixel 相关源码
+├── camera/                    # On-board camera and hand/shadow detection algorithms
+├── voice_control/             # Voice recognition, interaction logic, and local voice feedback resources
+├── smart_shadow_lamp_ws/       # ROS 2 workspace, encapsulating functional nodes
+│   ├── src/common_interfaces/  # Custom ROS 2 message interfaces
+│   ├── src/vision_perception/  # Visual perception ROS 2 bridge node
+│   ├── src/voice_control/      # Voice command and feedback ROS 2 bridge node
+│   ├── src/system_coordinator/ # System coordination and decision-making node
+│   ├── src/light_control/      # Light execution node
+│   └── src/arm_control/        # Robotic arm execution node
+└── open_manipulator/           # OpenMANIPULATOR-X, MoveIt, and Dynamixel related source code
 ```
 
-## ROS2 节点通信图说明
+## ROS 2 Node Communication Diagrams
 
-### 感知与决策链路
+### Perception and Decision Link
 
 ```text
 camera / RealSense D435
@@ -37,20 +37,20 @@ camera / RealSense D435
 vision_state_bridge  ── /vision/state ──▶ system_coordinator
 ```
 
-`vision_state_bridge` 在板端从 `camera/` 中复用手部、阴影和姿态检测逻辑，发布 `shadow_lamp_interfaces/msg/VisionState`。消息包含手部中心、阴影中心、阴影面积、是否需要补光、姿态状态和姿态异常类型。
+`vision_state_bridge` reuses the hand, shadow, and posture detection logic from the `camera/` directory on the board, publishing `shadow_lamp_interfaces/msg/VisionState`. The message contains the hand center, shadow center, shadow area, whether fill light is needed, posture state, and abnormal posture type.
 
-`system_coordinator` 订阅 `/vision/state` 后，根据当前跟踪状态和视觉结果发布机械臂控制、灯光控制和语音反馈。
+`system_coordinator` subscribes to `/vision/state` and publishes robotic arm control, light control, and voice feedback based on the current tracking status and visual results.
 
-### 语音命令链路
+### Voice Command Link
 
 ```text
-USB 麦克风
+USB Microphone
    │
    ▼
 voice_command_bridge ── /voice/command ──▶ system_coordinator
 ```
 
-`voice_command_bridge` 复用 `voice_control/` 的离线语音识别与命令解析逻辑，发布 `shadow_lamp_interfaces/msg/VoiceCommand`。常用命令包括：
+`voice_command_bridge` reuses the offline voice recognition and command parsing logic from `voice_control/`, publishing `shadow_lamp_interfaces/msg/VoiceCommand`. Commonly used commands include:
 
 - `enable_tracking`
 - `disable_tracking`
@@ -61,43 +61,43 @@ voice_command_bridge ── /voice/command ──▶ system_coordinator
 - `warm_light_mode`
 - `cool_light_mode`
 
-### 灯光控制链路
+### Light Control Link
 
 ```text
 system_coordinator ── /light/command ──▶ light_controller ──▶ WS2812 LED
 ```
 
-`system_coordinator` 根据语音命令生成 `shadow_lamp_interfaces/msg/LightCommand`。`light_controller` 订阅 `/light/command` 后，将灯光模式转换为 RGB 帧，并通过 SPI 输出到 WS2812 灯带。SPI 初始化失败时会退回日志输出，便于无硬件环境调试。
+`system_coordinator` generates `shadow_lamp_interfaces/msg/LightCommand` based on voice commands. `light_controller` subscribes to `/light/command`, converts the light mode into RGB frames, and outputs them to the WS2812 LED strip via SPI. If SPI initialization fails, it falls back to log output, making it convenient for debugging without hardware.
 
-### 机械臂控制链路
+### Robotic Arm Control Link
 
 ```text
 system_coordinator ── /arm/command ──▶ shadow_lamp_arm_controller ── /servo_node/delta_joint_cmds ──▶ MoveIt Servo
 ```
 
-`system_coordinator` 发布 `shadow_lamp_interfaces/msg/ArmCommand`，`shadow_lamp_arm_controller` 将 yaw/pitch 控制量转换为 `control_msgs/msg/JointJog`，再发送到 MoveIt Servo 的 `/servo_node/delta_joint_cmds`。
+`system_coordinator` publishes `shadow_lamp_interfaces/msg/ArmCommand`. `shadow_lamp_arm_controller` converts yaw/pitch control variables into `control_msgs/msg/JointJog` and sends them to `/servo_node/delta_joint_cmds` of MoveIt Servo.
 
-### 姿态语音提醒链路
+### Posture Voice Reminder Link
 
 ```text
-vision_state_bridge ── /vision/state ──▶ system_coordinator ── /voice/feedback ──▶ voice_feedback_bridge ──▶ 板端 wav 播放
+vision_state_bridge ── /vision/state ──▶ system_coordinator ── /voice/feedback ──▶ voice_feedback_bridge ──▶ On-board WAV playback
 ```
 
-当前姿态提醒只保留肩膀异常。视觉层检测到 `shoulder_tilt` 并持续超过阈值后，`system_coordinator` 发布 `/voice/feedback` 文本 `请调整坐姿`。`voice_feedback_bridge` 订阅该话题，并调用板端本地反馈模块播放 `请调整坐姿.wav`。
+Currently, the posture reminder only retains shoulder anomalies. Once the vision layer detects `shoulder_tilt` persisting beyond a specific threshold, `system_coordinator` publishes the text `请调整坐姿` ("Please adjust your posture") to `/voice/feedback`. `voice_feedback_bridge` subscribes to this topic and calls the local on-board feedback module to play `请调整坐姿.wav`.
 
-## 自定义消息
+## Custom Messages
 
-主要消息定义位于 `smart_shadow_lamp_ws/src/common_interfaces/msg/`。
+Main message definitions are located in `smart_shadow_lamp_ws/src/common_interfaces/msg/`.
 
-- `VisionState.msg`：视觉感知状态，包括手部、阴影和姿态字段。
-- `VoiceCommand.msg`：语音命令结果，包括唤醒词、命令名、置信度和原始文本。
-- `LightCommand.msg`：灯光控制指令，包括模式、亮度、色温和开关状态。
-- `ArmCommand.msg`：机械臂控制指令，包括模式、目标点和 yaw/pitch 控制量。
-- `SystemMode.msg`：系统模式状态，包括当前模式、原因和跟踪开关状态。
+- `VisionState.msg`: Visual perception state, including fields for hand, shadow, and posture.
+- `VoiceCommand.msg`: Voice command results, including wake word, command name, confidence, and raw text.
+- `LightCommand.msg`: Light control instructions, including mode, brightness, color temperature, and switch state.
+- `ArmCommand.msg`: Robotic arm control instructions, including mode, target point, and yaw/pitch control variables.
+- `SystemMode.msg`: System mode state, including current mode, reason, and tracking switch state.
 
-## 构建
+## Build Instructions
 
-建议使用系统 Python 构建 ROS2 工作区，避免 conda Python 与 ROS Humble ABI 不匹配。
+It is highly recommended to use the system Python to build the ROS 2 workspace to avoid ABI mismatch issues between conda's Python and ROS Humble.
 
 ```bash
 cd ~/workspace/smart_shadow_lamp_ws
@@ -107,9 +107,9 @@ colcon build
 source install/setup.bash
 ```
 
-## 板端演示启动方式
+## On-board Demo Startup
 
-演示时所有 ROS2 节点均在 RDK X5 板端运行。启动前先进入工作区并加载 ROS2 环境：
+For the demo, all ROS 2 nodes run on the RDK X5 board. Before starting, navigate to the workspace and source the ROS 2 environment:
 
 ```bash
 cd ~/workspace/smart_shadow_lamp_ws
@@ -117,7 +117,7 @@ source /opt/ros/humble/setup.bash
 source install/setup.bash
 ```
 
-启动视觉节点，可打开预览窗口：
+Start the vision node (you can open a preview window):
 
 ```bash
 cd ~/workspace/smart_shadow_lamp_ws
@@ -126,7 +126,7 @@ source install/setup.bash
 ros2 launch vision_perception vision_perception.launch.py use_depth_runtime:=true show_preview:=true preview_width:=1600 preview_height:=900 publish_period_sec:=0.05
 ```
 
-启动系统协调节点：
+Start the system coordinator node:
 
 ```bash
 cd ~/workspace/smart_shadow_lamp_ws
@@ -135,7 +135,7 @@ source install/setup.bash
 ros2 run system_coordinator system_coordinator
 ```
 
-启动灯光控制：
+Start the light controller:
 
 ```bash
 cd ~/workspace/smart_shadow_lamp_ws
@@ -144,7 +144,7 @@ source install/setup.bash
 ros2 run light_control light_controller
 ```
 
-启动语音反馈播放：
+Start voice feedback playback:
 
 ```bash
 cd ~/workspace/smart_shadow_lamp_ws
@@ -153,7 +153,7 @@ source install/setup.bash
 ros2 run voice_control voice_feedback_bridge
 ```
 
-如果还需要测试板端语音识别，再启动：
+If you also need to test on-board voice recognition, start the command bridge:
 
 ```bash
 cd ~/workspace/smart_shadow_lamp_ws
@@ -162,42 +162,42 @@ source install/setup.bash
 ros2 run voice_control voice_command_bridge
 ```
 
-## 常用调试命令
+## Common Debugging Commands
 
-查看视觉状态：
+Check vision state:
 
 ```bash
 ros2 topic echo /vision/state
 ```
 
-查看语音命令：
+Check voice commands:
 
 ```bash
 ros2 topic echo /voice/command
 ```
 
-查看灯光控制：
+Check light control commands:
 
 ```bash
 ros2 topic echo /light/command
 ```
 
-查看姿态提醒文本：
+Check posture reminder text:
 
 ```bash
 ros2 topic echo /voice/feedback
 ```
 
-手动触发板端姿态提醒播放：
+Manually trigger on-board posture reminder playback:
 
 ```bash
 ros2 topic pub --once /voice/feedback std_msgs/msg/String "{data: '请调整坐姿'}"
 ```
 
-## 当前实现说明
+## Current Implementation Notes
 
-- 姿态提醒目前只保留肩膀异常提醒，播报文本为 `请调整坐姿`。
-- 视觉预览会显示肩膀关键点计数，并在检测到肩点时绘制紫色肩点和肩线。
-- `voice_feedback_bridge` 负责板端播放反馈音频，`system_coordinator` 通过 `/voice/feedback` 发布提醒文本。
-- `light_controller` 默认使用 SPI 驱动 WS2812，失败时回退到日志输出。
-- `open_manipulator/` 已作为普通目录纳入主仓库，GitHub 上可直接浏览源码。
+- The posture reminder currently only retains alerts for shoulder anomalies, and the broadcast text is `请调整坐姿` ("Please adjust your posture").
+- The visual preview will display a shoulder keypoint count and draw purple shoulder points/lines when shoulders are detected.
+- `voice_feedback_bridge` is responsible for playing feedback audio locally on the board, and `system_coordinator` publishes the reminder text via `/voice/feedback`.
+- `light_controller` uses SPI to drive the WS2812 by default, falling back to standard ROS log output upon failure.
+- `open_manipulator/` has been integrated into the main repository as a standard directory, allowing its source code to be browsed directly on GitHub.
