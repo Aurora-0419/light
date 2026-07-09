@@ -1,20 +1,23 @@
 from __future__ import annotations
 
 from pathlib import Path
-import subprocess
-import tempfile
 
-import rclpy
-from rclpy.executors import ExternalShutdownException
-from rclpy.node import Node
-from std_msgs.msg import String
+try:
+    import rclpy
+    from rclpy.executors import ExternalShutdownException
+    from rclpy.node import Node
+    from std_msgs.msg import String
+except Exception:  # pragma: no cover - depends on ROS runtime
+    rclpy = None
+    ExternalShutdownException = KeyboardInterrupt
+    Node = object
+    String = None
 import yaml
 
-from app.audio.capture import AudioCaptureConfig, record_once
-from app.command.parser import parse_command_text
-from app.feedback.feedback import speak_or_print
-from app.runtime.capabilities import detect_voice_capabilities
-from app.speech.vosk_bridge import VoskRecognizer
+from app.audio.capture import AudioCaptureConfig, compute_poll_interval_seconds
+from app.runtime.interaction import VoiceInteractionSession
+from app.runtime.pipeline import AudioChunkPipeline, StreamingVoiceRuntime
+from app.speech.vosk_bridge import VoskStreamingRecognizer
 
 
 class VoiceControlNode(Node):
@@ -32,32 +35,38 @@ class VoiceControlNode(Node):
             duration_seconds=int(audio.get("chunk_seconds", 2)),
         )
         self.wake_phrase = str(speech.get("wake_phrase", "你好小灯"))
-        self.recognizer = VoskRecognizer(Path(__file__).resolve().parents[2] / str(speech.get("model_path", "models/vosk-model-small-cn")))
+        self.command_window_delay_seconds = float(speech.get("command_window_delay_seconds", 2.0))
+        self.recognizer = VoskStreamingRecognizer(
+            Path(__file__).resolve().parents[2] / str(speech.get("model_path", "models/vosk-model-small-cn")),
+            sample_rate=self.capture_config.rate,
+        )
+        self.interaction_session = VoiceInteractionSession(
+            wake_phrase=self.wake_phrase,
+            command_window_seconds=4.0,
+            command_window_delay_seconds=self.command_window_delay_seconds,
+        )
+        self.runtime = StreamingVoiceRuntime(
+            pipeline=AudioChunkPipeline(self.capture_config, self.recognizer),
+            interaction_session=self.interaction_session,
+        )
         self.publisher = self.create_publisher(String, "voice/command", 10)
-        self.timer = self.create_timer(2.5, self._tick)
+        self.timer = self.create_timer(max(0.1, compute_poll_interval_seconds(self.capture_config.duration_seconds, overhead_seconds=-3.8)), self._tick)
 
     def _tick(self) -> None:
-        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
-            wav_path = Path(tmp.name)
-        try:
-            record_once(self.capture_config, wav_path)
-        except subprocess.CalledProcessError as exc:
-            self.get_logger().warning(f"audio capture interrupted: {exc}")
+        result = self.runtime.poll_once(timeout_seconds=0.0)
+        if result is None:
             return
-        try:
-            text = self.recognizer.transcribe_file(wav_path)
-            parsed = parse_command_text(text, self.wake_phrase)
-            if parsed.command_name is None:
-                return
-            msg = String()
-            msg.data = parsed.command_name
-            self.publisher.publish(msg)
-            speak_or_print(parsed.feedback_text)
-        finally:
-            wav_path.unlink(missing_ok=True)
+        command_name = str(result.get("command_name", "") or "")
+        if not command_name:
+            return
+        msg = String()
+        msg.data = command_name
+        self.publisher.publish(msg)
 
 
 def main() -> None:
+    if rclpy is None:
+        raise RuntimeError("rclpy is unavailable in the current Python environment")
     rclpy.init()
     node = VoiceControlNode()
     try:
@@ -65,6 +74,9 @@ def main() -> None:
     except (KeyboardInterrupt, ExternalShutdownException):
         pass
     finally:
+        runtime = getattr(node, "runtime", None)
+        if runtime is not None:
+            runtime.stop()
         node.destroy_node()
         if rclpy.ok():
             rclpy.shutdown()

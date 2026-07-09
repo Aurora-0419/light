@@ -22,6 +22,7 @@ setup(
     entry_points={
         "console_scripts": [
             "voice_command_bridge = voice_control.voice_command_bridge:main",
+            "voice_feedback_bridge = voice_control.voice_feedback_bridge:main",
         ],
     },
 )

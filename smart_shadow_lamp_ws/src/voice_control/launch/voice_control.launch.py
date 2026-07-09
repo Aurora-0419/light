@@ -10,6 +10,12 @@ def generate_launch_description() -> LaunchDescription:
                 executable="voice_command_bridge",
                 name="voice_command_bridge",
                 output="screen",
-            )
+            ),
+            Node(
+                package="voice_control",
+                executable="voice_feedback_bridge",
+                name="voice_feedback_bridge",
+                output="screen",
+            ),
         ]
     )

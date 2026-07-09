@@ -22,7 +22,8 @@ class VisionStateBridge(Node):
         if VisionState is None:
             raise RuntimeError("shadow_lamp_interfaces.msg.VisionState is unavailable; build the ROS workspace first")
         super().__init__("vision_state_bridge")
-        self.runtime = make_default_runtime()
+        video_path = str(self.declare_parameter("video_path", "").value or "").strip()
+        self.runtime = make_default_runtime(video_path=video_path or None)
         self.publisher = self.create_publisher(VisionState, "/vision/state", 10)
         self.timer = self.create_timer(0.5, self._publish_state)
 

@@ -12,13 +12,15 @@ from typing import Any, Callable
 def resolve_workspace_root(adapter_file: Path) -> Path:
     adapter_file = adapter_file.resolve()
     for parent in adapter_file.parents:
-        if (parent / "src").is_dir() and (parent / "tests").is_dir():
+        if (parent / "src").is_dir():
             return parent
+        if parent.name == "install":
+            return parent.parent
     raise RuntimeError(f"failed to infer workspace root from {adapter_file}")
 
 
 WORKSPACE_ROOT = resolve_workspace_root(Path(__file__))
-DEFAULT_EXTERNAL_VISION_ROOT = WORKSPACE_ROOT.parent / "相机"
+DEFAULT_EXTERNAL_VISION_ROOT = WORKSPACE_ROOT.parent / "camera"
 
 from vision_perception.posture_detector import OptionalPosePostureDetector, PostureResult
 
@@ -158,11 +160,12 @@ def make_default_runtime(
     external_root: Path | None = None,
     loader: Callable[[Path], dict[str, Any]] | None = None,
     posture_detector: Any | None = None,
+    video_path: str | None = None,
 ) -> VisionRuntime:
     external_root = external_root or DEFAULT_EXTERNAL_VISION_ROOT
     loader = loader or _load_external_pc_demo_modules
     modules = loader(external_root)
-    args = argparse.Namespace(webcam=False, camera=None, video=None, save_frame=None)
+    args = argparse.Namespace(webcam=False, camera=None, video=video_path, save_frame=None)
     source = modules["resolve_source"](args)
     detector = modules["detector_factory"]()
     capture = modules["capture_factory"](source)

@@ -8,7 +8,17 @@ from types import ModuleType
 from typing import Any, Callable
 
 
-WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
+def resolve_workspace_root(adapter_file: Path) -> Path:
+    adapter_file = adapter_file.resolve()
+    for parent in adapter_file.parents:
+        if (parent / "src").is_dir():
+            return parent
+        if parent.name == "install":
+            return parent.parent
+    raise RuntimeError(f"failed to infer workspace root from {adapter_file}")
+
+
+WORKSPACE_ROOT = resolve_workspace_root(Path(__file__))
 DEFAULT_EXTERNAL_VOICE_ROOT = WORKSPACE_ROOT.parent / "voice_control"
 
 

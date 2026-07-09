@@ -4,9 +4,7 @@ from dataclasses import dataclass, field
 
 
 REMINDER_TEXT = {
-    "body_lean_left_right": "请坐正一点",
-    "head_too_close": "请不要离桌面太近",
-    "shoulder_tilt": "请调整一下肩膀姿势",
+    "shoulder_tilt": "请调整坐姿",
 }
 
 

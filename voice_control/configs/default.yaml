@@ -1,10 +1,16 @@
 audio:
-  device: plughw:0,0
+  device: plughw:CARD=Device,DEV=0
   rate: 16000
   channels: 1
-  chunk_seconds: 2
+  chunk_seconds: 4
 speech:
   wake_phrase: 你好小灯
   model_path: models/vosk-model-small-cn
+  command_window_delay_seconds: 2
 feedback:
   enable_tts: true
+remote:
+  enabled: false
+  server_url: ws://10.125.175.124:8765
+  open_timeout_seconds: 2.0
+  wait_after_playback_seconds: 3.0
